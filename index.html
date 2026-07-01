@@ -918,6 +918,31 @@ function nextQuestion() {
 }
 
 // ===== AI =====
+function renderAIStatic(q, enableChat) {
+    var text = q.ai_analysis;
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    text = text.replace(/\n/g, '<br>');
+    var correctOptObj = (q.options || []).find(function(o) { return o.code === q.answer.charAt(0); });
+    var headerHtml = '<div style="background:var(--success-bg);padding:12px 16px;border-radius:10px;margin-bottom:14px;border-left:4px solid var(--success);">' +
+        '<div style="font-weight:700;color:var(--success);font-size:15px;margin-bottom:2px;">✅ 正确答案：' + q.answer + '</div>' +
+        (correctOptObj ? '<div style="color:var(--text);font-size:13px;">' + correctOptObj.content + '</div>' : '') +
+        '</div>';
+    var footerHtml = '<div style="margin-top:16px;padding:14px 16px;background:var(--bg2);border-radius:10px;border-left:4px solid var(--ai);">' +
+        '<div style="font-weight:700;color:var(--ai);font-size:13px;margin-bottom:6px;">💡 大白话总结</div>' +
+        '<div style="font-size:13px;color:var(--text-muted);line-height:1.7;">' + (q.comments || '').replace(/\n/g, '<br>') + '</div>' +
+        '</div>';
+    document.getElementById('ai-body').innerHTML = headerHtml + '<div style="line-height:1.8;">' + text + '</div>' + (q.comments ? footerHtml : '');
+    if (enableChat) {
+        var optText = (q.options || []).map(function(o) { return o.code + '. ' + o.content; }).join('\n');
+        var prompt = '这是一道【' + q.type + '】。\n题目：' + q.title + '\n选项：\n' + optText + '\n正确答案是：' + q.answer;
+        chatMessages = [
+            { role: 'user', content: prompt },
+            { role: 'assistant', content: q.ai_analysis }
+        ];
+        document.getElementById('ai-chat-area').style.display = 'block';
+    }
+}
+
 async function callAI() {
     const q = quiz.list[quiz.index];
     const aiPanel = document.getElementById('ai-panel');
@@ -927,7 +952,9 @@ async function callAI() {
     document.getElementById('btn-ai-analyze').style.display = 'none';
 
     if (!config.key) {
-        if (q.comments && q.comments.trim()) {
+        if (q.ai_analysis) {
+            renderAIStatic(q, false);
+        } else if (q.comments && q.comments.trim()) {
             aiBody.innerHTML = '<div style="color:var(--text);line-height:1.8;">' + q.comments.replace(/\n/g, '<br>') + '</div>';
         } else {
             aiBody.innerHTML = '<span style="color:var(--text-muted);">暂无解析内容，请前往设置配置 AI API Key 获取智能解析</span>';
@@ -936,29 +963,7 @@ async function callAI() {
     }
 
     if (q.ai_analysis) {
-        let text = q.ai_analysis;
-        text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        text = text.replace(/\n/g, '<br>');
-        const correctOptObj = (q.options || []).find(o => o.code === q.answer.charAt(0));
-        const correctOptText = correctOptObj ? q.answer + '. ' + correctOptObj.content : q.answer;
-        const headerHtml = '<div style="background:var(--success-bg);padding:12px 16px;border-radius:10px;margin-bottom:14px;border-left:4px solid var(--success);">' +
-            '<div style="font-weight:700;color:var(--success);font-size:15px;margin-bottom:2px;">✅ 正确答案：' + q.answer + '</div>' +
-            (correctOptObj ? '<div style="color:var(--text);font-size:13px;">' + correctOptObj.content + '</div>' : '') +
-            '</div>';
-        const footerHtml = '<div style="margin-top:16px;padding:14px 16px;background:var(--bg2);border-radius:10px;border-left:4px solid var(--ai);">' +
-            '<div style="font-weight:700;color:var(--ai);font-size:13px;margin-bottom:6px;">💡 大白话总结</div>' +
-            '<div style="font-size:13px;color:var(--text-muted);line-height:1.7;">' + (q.comments || '').replace(/\n/g, '<br>') + '</div>' +
-            '</div>';
-        aiBody.innerHTML = headerHtml + '<div style="line-height:1.8;">' + text + '</div>' + (q.comments ? footerHtml : '');
-        if (config.key) {
-            const optText = (q.options || []).map(o => o.code + '. ' + o.content).join('\n');
-            const prompt = '这是一道【' + q.type + '】。\n题目：' + q.title + '\n选项：\n' + optText + '\n正确答案是：' + q.answer;
-            chatMessages = [
-                { role: 'user', content: prompt },
-                { role: 'assistant', content: q.ai_analysis }
-            ];
-            document.getElementById('ai-chat-area').style.display = 'block';
-        }
+        renderAIStatic(q, true);
         return;
     }
 
