@@ -526,6 +526,7 @@ let QUESTION_INDEX = new Map();
 // Async load questions from data.json (with localStorage caching)
 const CACHE_KEY = 'ai_questions_v2';
 const CACHE_VERSION = 2;
+let loadingDone = false;
 
 function populateQuestions(data) {
     QUESTIONS = data;
@@ -535,6 +536,8 @@ function populateQuestions(data) {
 }
 
 function hideLoading() {
+    if (loadingDone) return;
+    loadingDone = true;
     const overlay = document.getElementById('loading-overlay');
     overlay.classList.add('fade-out');
     setTimeout(() => overlay.remove(), 300);
@@ -550,41 +553,40 @@ function hideLoading() {
             const parsed = JSON.parse(cached);
             if (parsed.version === CACHE_VERSION && parsed.data && parsed.data.length > 0) {
                 populateQuestions(parsed.data);
-                progressEl.textContent = '已从缓存加载，共 ' + QUESTIONS.length + ' 题';
                 hideLoading();
             }
         }
     } catch (_) {}
 
-    // 2. Fetch from network (always, to ensure latest version)
+    // 2. Fetch from network silently to update cache for next visit
     try {
-        if (QUESTIONS.length === 0) progressEl.textContent = '正在下载题库数据...';
-        else progressEl.textContent = '正在检查更新...';
+        if (!loadingDone) progressEl.textContent = '正在下载题库数据...';
 
         const res = await fetch('data.json');
         if (!res.ok) throw new Error('HTTP ' + res.status);
-        progressEl.textContent = '正在解析数据...';
+        if (!loadingDone) progressEl.textContent = '正在解析数据...';
         const data = await res.json();
 
-        // Only update if different from cached
         if (data.length !== QUESTIONS.length || QUESTIONS.length === 0) {
             populateQuestions(data);
-            // Cache to localStorage
-            try {
-                localStorage.setItem(CACHE_KEY, JSON.stringify({ version: CACHE_VERSION, data }));
-            } catch (_) {}
         }
+        // Always update localStorage with latest
+        try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ version: CACHE_VERSION, data }));
+        } catch (_) {}
 
-        progressEl.textContent = '加载完成！共 ' + QUESTIONS.length + ' 题';
-        if (QUESTIONS.length === 0) throw new Error('题库为空');
-        hideLoading();
-    } catch (err) {
-        if (QUESTIONS.length > 0) {
-            // Already loaded from cache, hide loading silently
+        if (!loadingDone) {
+            progressEl.textContent = '加载完成！共 ' + QUESTIONS.length + ' 题';
             hideLoading();
-        } else {
-            progressEl.textContent = '加载失败：' + err.message;
-            progressEl.style.color = 'var(--error)';
+        }
+    } catch (err) {
+        if (!loadingDone) {
+            if (QUESTIONS.length > 0) {
+                hideLoading();
+            } else {
+                progressEl.textContent = '加载失败：' + err.message;
+                progressEl.style.color = 'var(--error)';
+            }
         }
     }
 })();
