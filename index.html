@@ -267,6 +267,36 @@
     .theme-btn { flex: 1; padding: 10px; border-radius: 8px; border: 2px solid var(--border); background: transparent; color: var(--text); cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
     .theme-btn.active { border-color: var(--primary); background: rgba(99,102,241,0.08); color: var(--primary); }
 
+    /* Timer */
+    .timer { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; color: var(--text-muted); }
+    .timer.warning { color: var(--warning); animation: timerPulse 1s ease-in-out infinite; }
+    .timer.danger { color: var(--error); animation: timerPulse 0.5s ease-in-out infinite; }
+    @keyframes timerPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    /* Grid button */
+    .btn-grid { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; color: var(--text-muted); }
+    .btn-grid:active { transform: scale(0.92); }
+
+    /* Question Grid Overlay */
+    .grid-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 200; display: none; justify-content: center; align-items: center; }
+    .grid-overlay.show { display: flex; }
+    .grid-panel { background: var(--card-solid); border-radius: var(--radius); padding: 24px; width: calc(100% - 40px); max-width: 440px; max-height: 80vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+    .grid-panel h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .grid-panel .grid-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; display: flex; gap: 16px; flex-wrap: wrap; }
+    .grid-panel .grid-legend { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+    .grid-panel .grid-legend .dot { width: 10px; height: 10px; border-radius: 3px; }
+    .grid-items { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+    .grid-item { aspect-ratio: 1; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 2px solid transparent; background: var(--bg); color: var(--text-muted); }
+    .grid-item:active { transform: scale(0.9); }
+    .grid-item.correct { background: var(--success-bg); color: var(--success); border-color: rgba(16,185,129,0.3); }
+    .grid-item.wrong { background: var(--error-bg); color: var(--error); border-color: rgba(239,68,68,0.3); }
+    .grid-item.current { border-color: var(--primary) !important; color: var(--primary); font-weight: 800; }
+    .grid-close { width: 100%; margin-top: 16px; padding: 12px; border-radius: 10px; border: 2px solid var(--border); background: transparent; color: var(--text); font-weight: 700; cursor: pointer; font-size: 15px; }
+
+    /* Swipe hint */
+    .swipe-hint { text-align: center; font-size: 12px; color: var(--text-light); margin-top: 12px; display: none; }
+    @media (pointer: coarse) { .swipe-hint { display: block; } }
+
     </style>
 </head>
 <body>
@@ -343,7 +373,11 @@
         <div class="progress-wrapper">
             <div class="progress-info">
                 <span class="label" id="quiz-mode-label">模拟训练</span>
-                <span class="nums"><span id="q-current">1</span> / <span id="q-total">100</span></span>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span class="timer" id="quiz-timer">⏱ 00:00</span>
+                    <button class="btn-grid" id="btn-grid" onclick="toggleGrid()" title="答题卡">📋</button>
+                    <span class="nums"><span id="q-current">1</span> / <span id="q-total">100</span></span>
+                </div>
             </div>
             <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
         </div>
@@ -395,6 +429,22 @@
                     </div>
                 </div>
             </div>
+        </div>
+        <div class="swipe-hint">👈 左右滑动切换题目</div>
+    </div>
+
+    <!-- Question Grid Overlay -->
+    <div class="grid-overlay" id="grid-overlay" onclick="if(event.target===this)toggleGrid()">
+        <div class="grid-panel">
+            <h3>📋 答题卡</h3>
+            <div class="grid-sub">
+                <span class="grid-legend"><span class="dot" style="background:var(--success);"></span> 正确</span>
+                <span class="grid-legend"><span class="dot" style="background:var(--error);"></span> 错误</span>
+                <span class="grid-legend"><span class="dot" style="background:var(--bg2);"></span> 未答</span>
+                <span class="grid-legend"><span class="dot" style="background:var(--primary);border:2px solid var(--primary);width:8px;height:8px;"></span> 当前</span>
+            </div>
+            <div class="grid-items" id="grid-items"></div>
+            <button class="grid-close" onclick="toggleGrid()">关闭答题卡</button>
         </div>
     </div>
 
@@ -524,6 +574,7 @@ function showView(id) {
     document.getElementById('view-' + id).classList.add('active');
     window.scrollTo({ top: 0, behavior: 'instant' });
     if (id === 'menu') {
+        stopTimer();
         document.getElementById('count-wrong').textContent = notebook.wrong.length;
         document.getElementById('count-favorites').textContent = notebook.favorites.length;
     }
@@ -563,8 +614,10 @@ function startQuiz(mode) {
         document.getElementById('quiz-mode-label').textContent = '模拟训练';
     }
     document.getElementById('q-total').textContent = quiz.list.length;
+    quizAnsweredMap = {};
     renderQuestion();
     showView('quiz');
+    startTimer();
 }
 
 function renderQuestion() {
@@ -841,6 +894,7 @@ async function sendChatMessage() {
 // ===== SCORE =====
 
 function showScore() {
+    stopTimer();
     const total = quiz.list.length;
     const correct = quiz.correctCount;
     const wrong = total - correct;
@@ -866,8 +920,10 @@ function reviewWrong() {
     quiz = { list: wrongQuestions, index: 0, answered: false, selected: [], correctCount: 0, wrongList: [] };
     document.getElementById('q-total').textContent = quiz.list.length;
     document.getElementById('quiz-mode-label').textContent = '错题复习';
+    quizAnsweredMap = {};
     renderQuestion();
     showView('quiz');
+    startTimer();
 }
 
 // ===== NOTEBOOK =====
@@ -881,8 +937,10 @@ function startNotebookQuiz(type) {
     quiz.list = ids.map(id => QUESTIONS[id]).filter(q => q);
     document.getElementById('quiz-mode-label').textContent = type === 'wrong' ? '我的错题本' : '我的收藏夹';
     document.getElementById('q-total').textContent = quiz.list.length;
+    quizAnsweredMap = {};
     renderQuestion();
     showView('quiz');
+    startTimer();
 }
 
 function toggleFavorite() {
@@ -1004,13 +1062,167 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// ===== UPDATE PREV BUTTON VISIBILITY =====
+// ===== UPDATE PREV BUTTON & GRID =====
 var origRenderQuestion = renderQuestion;
 renderQuestion = function() {
     origRenderQuestion();
     var prevBtn = document.getElementById('btn-prev');
     if (prevBtn) prevBtn.style.display = quiz.index > 0 ? 'flex' : 'none';
+    if (document.getElementById('grid-overlay').classList.contains('show')) renderGrid();
 };
+
+// ===== TIMER =====
+var timerInterval = null;
+var timerSeconds = 0;
+var timerCountdown = false;
+var timerTarget = 0;
+
+function startTimer() {
+    stopTimer();
+    timerSeconds = 0;
+    timerCountdown = false;
+    var label = document.getElementById('quiz-mode-label').textContent;
+    if (label.includes('模拟考试')) {
+        timerCountdown = true;
+        timerTarget = 90 * 60; // 90 minutes for 90 questions
+        timerSeconds = timerTarget;
+    }
+    updateTimerDisplay();
+    timerInterval = setInterval(function() {
+        if (timerCountdown) {
+            timerSeconds--;
+            if (timerSeconds <= 0) {
+                timerSeconds = 0;
+                stopTimer();
+                showToast('时间到！自动交卷', 'error');
+                showScore();
+                return;
+            }
+        } else {
+            timerSeconds++;
+        }
+        updateTimerDisplay();
+    }, 1000);
+}
+
+function stopTimer() {
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    document.getElementById('quiz-timer').className = 'timer';
+}
+
+function updateTimerDisplay() {
+    var el = document.getElementById('quiz-timer');
+    var h = Math.floor(timerSeconds / 3600);
+    var m = Math.floor((timerSeconds % 3600) / 60);
+    var s = timerSeconds % 60;
+    var t = (h > 0 ? String(h).padStart(2,'0') + ':' : '') + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    el.textContent = (timerCountdown ? '⏳ ' : '⏱ ') + t;
+
+    if (timerCountdown && timerSeconds < 300) el.className = 'timer danger';
+    else if (timerCountdown && timerSeconds < 600) el.className = 'timer warning';
+    else el.className = 'timer';
+}
+
+// ===== QUESTION GRID =====
+function toggleGrid() {
+    var overlay = document.getElementById('grid-overlay');
+    if (overlay.classList.contains('show')) {
+        overlay.classList.remove('show');
+    } else {
+        renderGrid();
+        overlay.classList.add('show');
+    }
+}
+
+function renderGrid() {
+    var container = document.getElementById('grid-items');
+    container.innerHTML = '';
+    for (var i = 0; i < quiz.list.length; i++) {
+        var div = document.createElement('div');
+        div.className = 'grid-item';
+        div.textContent = i + 1;
+        if (i === quiz.index) div.classList.add('current');
+
+        // Track answered state: use a separate array
+        if (quiz.answered && i === quiz.index) {
+            var q = quiz.list[i];
+            var correctArr = (q.answer || '').split('').sort();
+            var selected = quiz.selected.sort();
+            div.classList.add(correctArr.join('') === selected.join('') ? 'correct' : 'wrong');
+        }
+
+        (function(idx) {
+            div.onclick = function() { jumpToQuestion(idx); };
+        })(i);
+        container.appendChild(div);
+    }
+}
+
+function jumpToQuestion(idx) {
+    toggleGrid();
+    quiz.answered = false;
+    quiz.selected = [];
+    quiz.index = idx;
+    renderQuestion();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Track answered history per question for grid display
+var quizAnsweredMap = {};
+
+var origSubmitAnswer = submitAnswer;
+submitAnswer = function() {
+    origSubmitAnswer();
+    quizAnsweredMap[quiz.index] = {
+        correctArr: (quiz.list[quiz.index].answer || '').split('').sort().join(''),
+        selected: quiz.selected.slice().sort().join('')
+    };
+};
+
+// Override renderGrid to use quizAnsweredMap for all questions
+renderGrid = function() {
+    var container = document.getElementById('grid-items');
+    container.innerHTML = '';
+    for (var i = 0; i < quiz.list.length; i++) {
+        var div = document.createElement('div');
+        div.className = 'grid-item';
+        div.textContent = i + 1;
+        if (i === quiz.index) div.classList.add('current');
+
+        var rec = quizAnsweredMap[i];
+        if (rec) {
+            div.classList.add(rec.correctArr === rec.selected ? 'correct' : 'wrong');
+        }
+
+        (function(idx) {
+            div.onclick = function() { jumpToQuestion(idx); };
+        })(i);
+        container.appendChild(div);
+    }
+};
+
+// ===== SWIPE =====
+(function() {
+    var touchStartX = 0;
+    var touchStartY = 0;
+    var el = document.getElementById('view-quiz');
+
+    el.addEventListener('touchstart', function(e) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    el.addEventListener('touchend', function(e) {
+        var dx = e.changedTouches[0].clientX - touchStartX;
+        var dy = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+        if (dx < 0 && quiz.answered && quiz.index < quiz.list.length - 1) {
+            nextQuestion();
+        } else if (dx > 0 && quiz.index > 0) {
+            prevQuestion();
+        }
+    });
+})();
 </script>
 </body>
 </html>
