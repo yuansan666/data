@@ -327,6 +327,13 @@
             <p>共收录 <span class="count" id="total-count">0</span> 道题目</p>
         </div>
         <div class="menu-grid">
+            <div class="menu-card card-primary" id="resume-card" style="display:none; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); box-shadow: 0 8px 32px rgba(6,182,212,0.35);" onclick="resumeQuiz()">
+                <div class="card-icon">🔄</div>
+                <div class="card-text">
+                    <h3>继续上次答题</h3>
+                    <p><span id="resume-label">模拟训练</span> · 进度 <span id="resume-progress">0/0</span></p>
+                </div>
+            </div>
             <div class="menu-card card-primary" onclick="startQuiz(90)">
                 <div class="card-icon">📝</div>
                 <div class="card-text">
@@ -591,6 +598,86 @@ function hideLoading() {
     }
 })();
 
+// ===== QUIZ PROGRESS SAVE / RESTORE =====
+const PROGRESS_KEY = 'ai_quiz_progress';
+
+function saveQuizProgress() {
+    if (!quiz.list || quiz.list.length === 0) return;
+    if (quiz.index >= quiz.list.length) { clearQuizProgress(); return; }
+    try {
+        var indices = [];
+        for (var i = 0; i < quiz.list.length; i++) {
+            var idx = QUESTION_INDEX.get(quiz.list[i]);
+            if (idx !== undefined) indices.push(idx);
+        }
+        if (indices.length === 0) return;
+        var saved = {
+            indices: indices,
+            index: quiz.index,
+            answered: quiz.answered,
+            selected: quiz.selected.slice(),
+            correctCount: quiz.correctCount,
+            wrongList: quiz.wrongList.slice(),
+            answeredMap: JSON.parse(JSON.stringify(quizAnsweredMap)),
+            label: document.getElementById('quiz-mode-label').textContent
+        };
+        localStorage.setItem(PROGRESS_KEY, JSON.stringify(saved));
+    } catch (_) {}
+}
+
+function clearQuizProgress() {
+    localStorage.removeItem(PROGRESS_KEY);
+    var card = document.getElementById('resume-card');
+    if (card) card.style.display = 'none';
+}
+
+function restoreQuizProgress() {
+    var raw = localStorage.getItem(PROGRESS_KEY);
+    if (!raw) return false;
+    try {
+        var saved = JSON.parse(raw);
+        if (!saved.indices || saved.indices.length === 0 || !QUESTIONS || QUESTIONS.length === 0) return false;
+        quiz.list = [];
+        for (var i = 0; i < saved.indices.length; i++) {
+            var q = QUESTIONS[saved.indices[i]];
+            if (q) quiz.list.push(q);
+        }
+        if (quiz.list.length === 0) return false;
+        quiz.index = saved.index || 0;
+        quiz.selected = saved.selected || [];
+        quiz.answered = saved.answered || false;
+        quiz.correctCount = saved.correctCount || 0;
+        quiz.wrongList = saved.wrongList || [];
+        quizAnsweredMap = saved.answeredMap || {};
+        document.getElementById('quiz-mode-label').textContent = saved.label || '继续答题';
+        document.getElementById('q-total').textContent = quiz.list.length;
+        return true;
+    } catch (_) { return false; }
+}
+
+function resumeQuiz() {
+    if (!restoreQuizProgress()) { showToast('存档已过期，请重新开始', 'error'); return; }
+    renderQuestion();
+    showView('quiz');
+    startTimer();
+}
+
+function checkSavedProgress() {
+    var raw = localStorage.getItem(PROGRESS_KEY);
+    var card = document.getElementById('resume-card');
+    if (!raw || !card) return;
+    try {
+        var saved = JSON.parse(raw);
+        if (saved.indices && saved.indices.length > 0) {
+            card.style.display = 'flex';
+            document.getElementById('resume-label').textContent = saved.label || '模拟训练';
+            var pct = Math.round((saved.index || 0) / saved.indices.length * 100);
+            document.getElementById('resume-progress').textContent = (saved.index || 0) + '/' + saved.indices.length + ' (' + pct + '%)';
+        } else {
+            card.style.display = 'none';
+        }
+    } catch (_) { card.style.display = 'none'; }
+}
 
 // ===== STATE =====
 let quiz = { list: [], index: 0, answered: false, selected: [], correctCount: 0, wrongList: [] };
@@ -613,6 +700,7 @@ function saveNotebook() { localStorage.setItem('ai_notebook', JSON.stringify(not
 
     document.getElementById('count-wrong').textContent = notebook.wrong.length;
     document.getElementById('count-favorites').textContent = notebook.favorites.length;
+    checkSavedProgress();
 })();
 
 // ===== NAVIGATION =====
@@ -621,9 +709,11 @@ function showView(id) {
     document.getElementById('view-' + id).classList.add('active');
     window.scrollTo({ top: 0, behavior: 'instant' });
     if (id === 'menu') {
+        saveQuizProgress();
         stopTimer();
         document.getElementById('count-wrong').textContent = notebook.wrong.length;
         document.getElementById('count-favorites').textContent = notebook.favorites.length;
+        checkSavedProgress();
     }
 }
 
@@ -801,12 +891,14 @@ function submitAnswer() {
     // Show next buttons
     document.getElementById('action-bar').classList.add('hidden');
     document.getElementById('action-bar-next').classList.remove('hidden');
+    saveQuizProgress();
 }
 
 function nextQuestion() {
     quiz.index++;
     renderQuestion();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    saveQuizProgress();
 }
 
 // ===== AI =====
@@ -941,6 +1033,7 @@ async function sendChatMessage() {
 // ===== SCORE =====
 
 function showScore() {
+    clearQuizProgress();
     stopTimer();
     const total = quiz.list.length;
     const correct = quiz.correctCount;
@@ -1061,6 +1154,7 @@ function prevQuestion() {
     quiz.index--;
     renderQuestion();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    saveQuizProgress();
 }
 
 // ===== THEME =====
