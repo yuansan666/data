@@ -657,7 +657,7 @@ function restoreQuizProgress() {
 
 function resumeQuiz() {
     if (!restoreQuizProgress()) { showToast('存档已过期，请重新开始', 'error'); return; }
-    renderQuestion();
+    renderQuestion(true);
     showView('quiz');
     startTimer();
 }
@@ -766,11 +766,13 @@ function startQuiz(mode) {
     startTimer();
 }
 
-function renderQuestion() {
+function renderQuestion(keepAnswerState) {
     if (quiz.index >= quiz.list.length) { showScore(); return; }
     
-    quiz.answered = false;
-    quiz.selected = [];
+    if (!keepAnswerState) {
+        quiz.answered = false;
+        quiz.selected = [];
+    }
     const q = quiz.list[quiz.index];
     const num = quiz.index + 1;
     const total = quiz.list.length;
@@ -1214,10 +1216,10 @@ document.addEventListener('keydown', function(e) {
 
 // ===== UPDATE PREV BUTTON & GRID =====
 var origRenderQuestion = renderQuestion;
-renderQuestion = function() {
-    origRenderQuestion();
+renderQuestion = function(keepAnswerState) {
+    origRenderQuestion(keepAnswerState);
     var prevBtn = document.getElementById('btn-prev');
-    if (prevBtn) prevBtn.style.display = quiz.index > 0 ? 'flex' : 'none';
+    if (prevBtn) prevBtn.style.display = quiz.index > 0 ? '' : 'none';
     if (document.getElementById('grid-overlay').classList.contains('show')) renderGrid();
 };
 
