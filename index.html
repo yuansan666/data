@@ -405,9 +405,12 @@
             <button class="btn btn-primary" id="btn-submit" onclick="submitAnswer()">确认提交</button>
         </div>
         <div class="actions mt-12 hidden" id="action-bar-next">
-            <button class="btn btn-outline" onclick="showView('menu')">退出</button>
             <button class="btn btn-outline" id="btn-prev" onclick="prevQuestion()" style="display:none;">← 上一题</button>
             <button class="btn btn-success" onclick="nextQuestion()">下一题 →</button>
+        </div>
+        <div class="actions hidden" id="action-bar-quit">
+            <button class="btn btn-outline" onclick="showView('menu')">💾 保存并退出</button>
+            <button class="btn" style="border:2px solid var(--error);color:var(--error);" onclick="abandonQuiz()">🗑 放弃答题</button>
         </div>
 
         <div class="result-panel" id="result-panel">
@@ -817,6 +820,7 @@ function renderQuestion(keepAnswerState) {
     // Reset UI
     document.getElementById('action-bar').classList.remove('hidden');
     document.getElementById('action-bar-next').classList.add('hidden');
+    document.getElementById('action-bar-quit').classList.add('hidden');
     document.getElementById('result-panel').classList.remove('show');
     document.getElementById('ai-panel').classList.remove('show');
     document.getElementById('ai-chat-area').style.display = 'none';
@@ -902,6 +906,7 @@ function submitAnswer() {
     // Show next buttons
     document.getElementById('action-bar').classList.add('hidden');
     document.getElementById('action-bar-next').classList.remove('hidden');
+    document.getElementById('action-bar-quit').classList.remove('hidden');
     saveQuizProgress();
 }
 
@@ -1166,6 +1171,13 @@ function prevQuestion() {
     renderQuestion();
     window.scrollTo({ top: 0, behavior: 'smooth' });
     saveQuizProgress();
+}
+
+// ===== ABANDON QUIZ =====
+function abandonQuiz() {
+    clearQuizProgress();
+    showToast('已放弃本次答题', 'info');
+    showView('menu');
 }
 
 // ===== THEME =====
