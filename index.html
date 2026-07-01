@@ -313,7 +313,7 @@
     <div class="app">
     <!-- Navigation -->
     <div class="nav">
-        <div class="nav-title" onclick="showView('menu')"><span>Ai训练师 · 三级</span></div>
+            <div class="nav-title" onclick="goHome()"><span>Ai训练师 · 三级</span></div>
         <div style="display:flex;gap:8px;">
             <button class="btn-icon" onclick="showView('settings')" title="设置">⚙️</button>
         </div>
@@ -704,6 +704,15 @@ function saveNotebook() { localStorage.setItem('ai_notebook', JSON.stringify(not
 })();
 
 // ===== NAVIGATION =====
+function goHome() {
+    // Prevent accidental navigation during an active quiz
+    if (quiz.list && quiz.list.length > 0 && quiz.index < quiz.list.length) {
+        showToast('正在答题中，点击底部「退出」返回首页', 'info');
+        return;
+    }
+    showView('menu');
+}
+
 function showView(id) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-' + id).classList.add('active');
