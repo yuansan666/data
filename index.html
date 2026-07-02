@@ -507,6 +507,16 @@
             </div>
         </div>
         <div class="settings-section">
+            <h3><span>⚡</span> 刷题模式</h3>
+            <div class="theme-toggle">
+                <button class="theme-btn active" id="mode-trad" onclick="setQuizMode('trad')">📖 传统模式</button>
+                <button class="theme-btn" id="mode-fast" onclick="setQuizMode('fast')">⚡ 快速模式</button>
+            </div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:8px;">
+                <span id="mode-desc">传统模式：答完手动点下一题，适合仔细学习</span>
+            </div>
+        </div>
+        <div class="settings-section">
             <h3><span>🎨</span> 主题切换</h3>
             <div class="theme-toggle">
                 <button class="theme-btn active" id="theme-auto" onclick="setTheme('auto')">🌓 跟随系统</button>
@@ -706,6 +716,7 @@ let chatMessages = [];
 const DEFAULT_ENDPOINT = 'https://api.deepseek.com/v1';
 const DEFAULT_MODEL = 'deepseek-chat';
 let config = JSON.parse(localStorage.getItem('ai_cfg') || '{}');
+let quizMode = localStorage.getItem('ai_quiz_mode') || 'trad';
 
 let notebook = JSON.parse(localStorage.getItem('ai_notebook') || '{"wrong":[],"favorites":[]}');
 if (!notebook.wrong) notebook.wrong = [];
@@ -722,6 +733,7 @@ function saveNotebook() { localStorage.setItem('ai_notebook', JSON.stringify(not
     document.getElementById('count-wrong').textContent = notebook.wrong.length;
     document.getElementById('count-favorites').textContent = notebook.favorites.length;
     checkSavedProgress();
+    updateQuizModeUI();
 })();
 
 // ===== NAVIGATION =====
@@ -967,6 +979,13 @@ function submitAnswer() {
     document.getElementById('action-bar-next').classList.remove('hidden');
     document.getElementById('action-bar-quit').classList.remove('hidden');
     saveQuizProgress();
+
+    // Fast mode: auto-advance on correct answer
+    if (quizMode === 'fast' && isCorrect) {
+        setTimeout(function() {
+            if (quiz.index < quiz.list.length - 1) nextQuestion();
+        }, 1200);
+    }
 }
 
 function nextQuestion() {
@@ -1306,6 +1325,27 @@ function updateThemeButtons(mode) {
     });
 }
 
+// ===== QUIZ MODE =====
+function setQuizMode(mode) {
+    quizMode = mode;
+    localStorage.setItem('ai_quiz_mode', mode);
+    updateQuizModeUI();
+}
+
+function updateQuizModeUI() {
+    var btns = ['trad', 'fast'];
+    for (var i = 0; i < btns.length; i++) {
+        var btn = document.getElementById('mode-' + btns[i]);
+        if (btn) btn.classList.toggle('active', btns[i] === quizMode);
+    }
+    var desc = document.getElementById('mode-desc');
+    if (desc) {
+        desc.textContent = quizMode === 'fast'
+            ? '快速模式：答对自动跳下一题，左右滑动切题，适合快速刷题'
+            : '传统模式：答完手动点下一题，适合仔细学习';
+    }
+}
+
 // ===== KEYBOARD SHORTCUTS =====
 document.addEventListener('keydown', function(e) {
     if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
@@ -1331,9 +1371,15 @@ var origRenderQuestion = renderQuestion;
 renderQuestion = function(keepAnswerState) {
     origRenderQuestion(keepAnswerState);
     var prevBtn = document.getElementById('btn-prev');
-    // Hide prev button in exam mode or if at first question
-    if (prevBtn) prevBtn.style.display = (quiz.index > 0 && quiz.mode !== 'exam') ? '' : 'none';
+    if (prevBtn) prevBtn.style.display = quiz.index > 0 ? '' : 'none';
     if (document.getElementById('grid-overlay').classList.contains('show')) renderGrid();
+    // Update swipe hint for current mode
+    var hint = document.querySelector('.swipe-hint');
+    if (hint) {
+        hint.textContent = quizMode === 'fast'
+            ? '⚡ 快速模式：答对自动下一题 · 左右滑动切题'
+            : '👈 左右滑动切换题目';
+    }
 };
 
 // ===== TIMER =====
