@@ -666,9 +666,17 @@ function restoreQuizProgress() {
         quiz.wrongList = saved.wrongList || [];
         quiz.mode = saved.mode || '';
         quizAnsweredMap = saved.answeredMap || {};
-        // Restore timer state
-        if (typeof saved.timerSeconds === 'number') timerSeconds = saved.timerSeconds;
-        if (typeof saved.timerCountdown === 'boolean') timerCountdown = saved.timerCountdown;
+        // Restore timer state with fallback
+        if (typeof saved.timerSeconds === 'number' && saved.timerSeconds > 0) {
+            timerSeconds = saved.timerSeconds;
+            if (typeof saved.timerCountdown === 'boolean') timerCountdown = saved.timerCountdown;
+        } else if (saved.label && saved.label.includes('模拟考试')) {
+            timerSeconds = 90 * 60;
+            timerCountdown = true;
+        } else {
+            timerSeconds = 0;
+            timerCountdown = false;
+        }
         document.getElementById('quiz-mode-label').textContent = saved.label || '继续答题';
         document.getElementById('q-total').textContent = quiz.list.length;
         return true;
@@ -974,9 +982,11 @@ function submitAnswer() {
 
     document.getElementById('btn-ai-analyze').style.display = 'flex';
 
-    // Show next buttons
+    // Show next/quit buttons (fast mode: hide next/prev, show only quit)
     document.getElementById('action-bar').classList.add('hidden');
-    document.getElementById('action-bar-next').classList.remove('hidden');
+    if (quizMode !== 'fast') {
+        document.getElementById('action-bar-next').classList.remove('hidden');
+    }
     document.getElementById('action-bar-quit').classList.remove('hidden');
     saveQuizProgress();
 
@@ -1370,14 +1380,27 @@ document.addEventListener('keydown', function(e) {
 var origRenderQuestion = renderQuestion;
 renderQuestion = function(keepAnswerState) {
     origRenderQuestion(keepAnswerState);
+
+    // Mock exam: never show prev button
+    var isExam = quiz.mode === 'exam';
     var prevBtn = document.getElementById('btn-prev');
-    if (prevBtn) prevBtn.style.display = quiz.index > 0 ? '' : 'none';
+    if (prevBtn) prevBtn.style.display = (quiz.index > 0 && !isExam) ? '' : 'none';
+
+    // Fast mode: hide next/prev buttons, only show quit
+    var nextBar = document.getElementById('action-bar-next');
+    var quitBar = document.getElementById('action-bar-quit');
+    if (quizMode === 'fast') {
+        if (nextBar) nextBar.classList.add('hidden');
+        if (quitBar) quitBar.classList.remove('hidden');
+    }
+
     if (document.getElementById('grid-overlay').classList.contains('show')) renderGrid();
+
     // Update swipe hint for current mode
     var hint = document.querySelector('.swipe-hint');
     if (hint) {
         hint.textContent = quizMode === 'fast'
-            ? '⚡ 快速模式：答对自动下一题 · 左右滑动切题'
+            ? '⚡ 快速模式：答对自动下一题 · 仅支持滑动切题'
             : '👈 左右滑动切换题目';
     }
 };
