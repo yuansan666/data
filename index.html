@@ -464,7 +464,7 @@
         <div class="score-hero">
             <div class="score-circle">
                 <div class="score-num" id="final-score">0</div>
-                <div class="score-label">正确率 %</div>
+                <div class="score-label" id="score-label">正确率 %</div>
             </div>
             <h2 style="margin-top:8px;" id="score-title">训练完成！</h2>
         </div>
@@ -1118,18 +1118,46 @@ function showScore() {
     const total = quiz.list.length;
     const correct = quiz.correctCount;
     const wrong = total - correct;
-    const pct = total > 0 ? Math.round(correct / total * 100) : 0;
 
-    document.getElementById('final-score').textContent = pct;
-    document.getElementById('stat-total').textContent = total;
-    document.getElementById('stat-correct').textContent = correct;
-    document.getElementById('stat-wrong').textContent = wrong;
+    // In exam mode, use point-based scoring (multi-select = 2pts, others = 1pt)
+    if (quiz.mode === 'exam') {
+        var earnedPoints = 0;
+        var totalPoints = 0;
+        for (var i = 0; i < quiz.list.length; i++) {
+            var q = quiz.list[i];
+            var pts = q.type.includes('多选') ? 2 : 1;
+            totalPoints += pts;
+            var rec = quizAnsweredMap[i];
+            if (rec && rec.correctArr === rec.selected) {
+                earnedPoints += pts;
+            }
+        }
+        document.getElementById('final-score').textContent = earnedPoints;
+        document.getElementById('score-label').textContent = '总分 ' + totalPoints + ' 分';
+        document.getElementById('stat-total').textContent = total;
+        document.getElementById('stat-correct').textContent = correct;
+        document.getElementById('stat-wrong').textContent = wrong;
 
-    const title = document.getElementById('score-title');
-    if (pct >= 90) title.textContent = '🏆 太厉害了！完美通关！';
-    else if (pct >= 70) title.textContent = '👏 表现不错！继续加油！';
-    else if (pct >= 60) title.textContent = '💪 及格了，再练练！';
-    else title.textContent = '📚 还需努力，多刷几遍！';
+        var pct = totalPoints > 0 ? Math.round(earnedPoints / totalPoints * 100) : 0;
+        var title = document.getElementById('score-title');
+        if (pct >= 90) title.textContent = '🏆 太厉害了！完美通关！';
+        else if (pct >= 70) title.textContent = '👏 表现不错！继续加油！';
+        else if (pct >= 60) title.textContent = '💪 及格了，再练练！';
+        else title.textContent = '📚 还需努力，多刷几遍！';
+    } else {
+        var pct = total > 0 ? Math.round(correct / total * 100) : 0;
+        document.getElementById('final-score').textContent = pct;
+        document.getElementById('score-label').textContent = '正确率 %';
+        document.getElementById('stat-total').textContent = total;
+        document.getElementById('stat-correct').textContent = correct;
+        document.getElementById('stat-wrong').textContent = wrong;
+
+        var title = document.getElementById('score-title');
+        if (pct >= 90) title.textContent = '🏆 太厉害了！完美通关！';
+        else if (pct >= 70) title.textContent = '👏 表现不错！继续加油！';
+        else if (pct >= 60) title.textContent = '💪 及格了，再练练！';
+        else title.textContent = '📚 还需努力，多刷几遍！';
+    }
 
     showView('score');
 }
