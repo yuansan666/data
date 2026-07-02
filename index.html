@@ -1338,8 +1338,8 @@ function updateThemeButtons(mode) {
 
 // ===== TOGGLE SETTINGS =====
 function toggleSettings() {
-    var settingsView = document.getElementById('view-settings');
-    if (settingsView.classList.contains('active')) {
+    var activeView = document.querySelector('.view.active');
+    if (activeView && activeView.id === 'view-settings') {
         showView('menu');
     } else {
         showView('settings');
