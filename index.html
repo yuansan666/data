@@ -315,7 +315,7 @@
     <div class="nav">
             <div class="nav-title" onclick="goHome()"><span>Ai训练师 · 三级</span></div>
         <div style="display:flex;gap:8px;">
-            <button class="btn-icon" onclick="showView('settings')" title="设置">⚙️</button>
+            <button class="btn-icon" onclick="toggleSettings()" title="设置" id="btn-settings">⚙️</button>
         </div>
     </div>
 
@@ -1326,6 +1326,7 @@ function setTheme(mode) {
     localStorage.setItem('ai_theme', mode);
     applyTheme(mode);
     updateThemeButtons(mode);
+    showToast('主题已切换', 'success');
 }
 
 function updateThemeButtons(mode) {
@@ -1335,11 +1336,22 @@ function updateThemeButtons(mode) {
     });
 }
 
+// ===== TOGGLE SETTINGS =====
+function toggleSettings() {
+    var settingsView = document.getElementById('view-settings');
+    if (settingsView.classList.contains('active')) {
+        showView('menu');
+    } else {
+        showView('settings');
+    }
+}
+
 // ===== QUIZ MODE =====
 function setQuizMode(mode) {
     quizMode = mode;
     localStorage.setItem('ai_quiz_mode', mode);
     updateQuizModeUI();
+    showToast('刷题模式已切换', 'success');
 }
 
 function updateQuizModeUI() {
